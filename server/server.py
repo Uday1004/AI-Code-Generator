@@ -2,10 +2,19 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+ 
+API_key = os.getenv("API_KEY")
+if API_key is None:
+    raise ValueError("API_KEY is not set in .env file")
+
 
 app = FastAPI()
 
-genai.configure(api_key="AIzaSyAFNs_dYBow5Qo73PaOgH7fb1LlQMBN5Is")  # Replace with your actual API key
+genai.configure(api_key=API_key)  # Replace with your actual API key
 model = genai.GenerativeModel("gemini-1.5-pro")
 
 class PromptRequest(BaseModel):

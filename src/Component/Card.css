@@ -1,0 +1,5 @@
+.welcome-container {
+  position: absolute;
+  z-index: 1000;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}

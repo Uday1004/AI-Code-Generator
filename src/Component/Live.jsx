@@ -1,19 +1,44 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { HashLoader } from "react-spinners";
 import { Sandpack } from "@codesandbox/sandpack-react";
 import "../Component/Live.css";
 import { githubLight } from "@codesandbox/sandpack-themes";
 import { basicSetup } from "@codemirror/basic-setup";
 import { autocompletion } from "@codemirror/autocomplete";
+import { ToastContainer, toast } from "react-toastify";
+import WelcomeCard from "./Card";
 
 function Live() {
   const [code, setCode] = useState("");
   const [prompt, setPrompt] = useState("");
   const [showEditor, setShowEditor] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [userName, setUserName] = useState("Guest");
+  const [dependencies, setDependencies] = useState({});
+
+  // ✅ Load stored username on mount
+  useEffect(() => {
+    const storedName = localStorage.getItem("PRoCodeUsername");
+    if (storedName) {
+      setUserName(storedName);
+    }
+  }, []);
+
+  // ✅ Listen for name updates in localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const updatedName = localStorage.getItem("PRoCodeUsername");
+      if (updatedName) {
+        setUserName(updatedName);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   const cleanGeneratedCode = (rawCode) => {
-    if (!rawCode) return ""; // Handle undefined or null response
+    if (!rawCode) return "";
     let cleaned = rawCode.replace(/```jsx|```javascript|```/g, "").trim();
     if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
       cleaned = cleaned.slice(1, -1);
@@ -23,7 +48,8 @@ function Live() {
 
   const runAnimation = () => {
     const inputContainer = document.querySelector(".prompt-container");
-
+    const textAnimation = document.querySelector(".animated-text");
+    if (textAnimation) textAnimation.style.opacity = "0";
     if (inputContainer) {
       inputContainer.style.transition =
         "transform 0.5s ease-in-out, opacity 0.5s";
@@ -33,18 +59,16 @@ function Live() {
   };
 
   const handleSubmit = async () => {
-    runAnimation(); // Run animation before submission
-    setTimeout(() => {
-      setLoading(true);
-    }, 1000);
+    if (!prompt.trim()) {
+      toast.warning("Please enter a prompt.");
+      return;
+    }
+
+    runAnimation();
+    setTimeout(() => setLoading(true), 800);
 
     setTimeout(async () => {
-      setShowEditor(true); // Show Sandpack after animation
-
-      if (!prompt.trim()) {
-        alert("Please enter a prompt.");
-        return;
-      }
+      setShowEditor(true);
 
       try {
         const response = await fetch("http://localhost:8000/prompt", {
@@ -61,45 +85,74 @@ function Live() {
         let cleanedCode = cleanGeneratedCode(data.code);
 
         setCode(cleanedCode);
+        setDependencies(extractDependencies(cleanedCode)); // ✅ Extract and set dependencies
       } catch (error) {
         console.error("Error fetching data:", error);
-        alert("Failed to generate code. Please try again.");
+        toast.error(
+          <div className="d-flex justify-content-between align-items-center">
+            <span>Failed to generate code. Please try again.</span>
+            <input
+              className="btn btn-outline-danger btn-sm ms-auto mt-4"
+              type="submit"
+              value="Try Again"
+              onClick={() => window.location.reload()}
+            />
+          </div>
+        );
       } finally {
         setLoading(false);
       }
-    }, 500); // Delay fetching data until animation completes
+    }, 500);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
-      e.preventDefault(); // Prevent form submission (if inside a form)
+      e.preventDefault();
       handleSubmit();
     }
+  };
+
+  // ✅ Extract dependencies dynamically from generated code
+  const extractDependencies = (code) => {
+    const importRegex = /import\s+.*?\s+from\s+["']([^"']+)["']/g;
+    let match;
+    const dependencies = {};
+
+    while ((match = importRegex.exec(code)) !== null) {
+      const packageName = match[1].split("/")[0]; // Extract package name
+      if (!packageName.startsWith(".")) {
+        dependencies[packageName] = "latest"; // ✅ Set dependencies to latest version
+      }
+    }
+    return dependencies;
   };
 
   return (
     <>
       <div className="live-container">
-        <div
-          className="display-3"
-          style={{ marginBottom: "5rem", marginTop: "0" }}
-        >
-          Hello uday
-        </div>
+        <WelcomeCard />
+        <ToastContainer />
         {!showEditor && (
-          <div className="prompt-container">
-            <input
-              type="text"
-              placeholder="Enter your prompt..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="prompt-input"
-              onKeyDown={handleKeyDown}
-            />
-            <button onClick={handleSubmit} className="submit-button">
-              Generate
-            </button>
-          </div>
+          <>
+            <div className="container">
+              <div className="display-3 text-center mb-5 animated-text">
+                Hello {userName}
+              </div>
+            </div>
+            <div className="prompt-container">
+              <input
+                type="text"
+                placeholder="Enter your prompt..."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                className="prompt-input"
+                onKeyDown={handleKeyDown}
+              />
+              <button onClick={handleSubmit} className="submit-button">
+                Generate
+              </button>
+            </div>
+          </>
         )}
 
         {loading ? (
@@ -130,39 +183,10 @@ function Live() {
                 template="react"
                 theme={githubLight}
                 customSetup={{
-                  dependencies: {
-                    react: "latest",
-                    "react-dom": "latest",
-                    "react-router-dom": "latest",
-                    bootstrap: "latest",
-                    tailwindcss: "latest",
-                    "@react-spring/web": "latest",
-                    "@codesandbox/sandpack-react": "latest",
-                    "react-redux": "^8.0.5",
-                    "@reduxjs/toolkit": "^1.9.1",
-                    axios: "latest",
-                    formik: "latest",
-                    yup: "latest",
-                    lodash: "latest",
-                    "framer-motion": "latest",
-                    clsx: "latest",
-                    zustand: "latest",
-                    recoil: "latest",
-                    "react-icons": "latest",
-                    "react-query": "latest",
-                    "@tanstack/react-query": "latest",
-                    "react-toastify": "latest",
-                    uuid: "latest",
-                    "date-fns": "latest",
-                    "@mui/material": "latest",
-                    "@mui/icons-material": "latest",
-                  },
+                  dependencies: dependencies, // ✅ Set extracted dependencies dynamically
                 }}
                 files={{
-                  "/App.js": {
-                    code: code,
-                    active: true,
-                  },
+                  "/App.js": { code: code, active: true },
                 }}
                 options={{
                   showNavigator: true,
@@ -170,9 +194,7 @@ function Live() {
                   extensions: [basicSetup, autocompletion()],
                   editorHeight: 500,
                   editorWidthPercentage: 60,
-                  wrapContent: true,
                 }}
-                // style={{ width: "85rem", height: "400px", margin: "auto" }}
               />
             </div>
           )
