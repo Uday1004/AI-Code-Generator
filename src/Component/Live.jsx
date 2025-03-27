@@ -71,11 +71,14 @@ function Live() {
       setShowEditor(true);
 
       try {
-        const response = await fetch("http://localhost:8000/prompt", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
+        const response = await fetch(
+          "https://ai-code-generator-backend-hkyt.onrender.com/prompt",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt }),
+          }
+        );
 
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
